@@ -30,9 +30,9 @@ public class TrainingStack : Stack
         var config = new Config();
         var suffix = config.Get("suffix");
 
-        var resourceGroup = new ResourceGroup("rg-pulumi-training");
+        var resourceGroup = new ResourceGroup("rg-xcc-pulumi");
 
-        var plan = new Plan("service-plan-dynamic", new PlanArgs
+        var plan = new Plan("sp-xcc-dynamic", new PlanArgs
         {
             ResourceGroupName = resourceGroup.Name,
             Kind = "FunctionApp",
@@ -43,7 +43,7 @@ public class TrainingStack : Stack
             }
         });
 
-        var storageAccount = new Account("saechofunction", new AccountArgs
+        var storageAccount = new Account("funcxccpulumi", new AccountArgs
         {
             ResourceGroupName = resourceGroup.Name,
             AccountReplicationType = "LRS",
@@ -51,7 +51,7 @@ public class TrainingStack : Stack
             AccountKind = "StorageV2"
         });
         
-        var app = new FunctionApp($"{suffix}-function-app", new FunctionAppArgs
+        var app = new FunctionApp($"func-{suffix}-app", new FunctionAppArgs
         {
             ResourceGroupName = resourceGroup.Name,
             AppServicePlanId = plan.Id,
