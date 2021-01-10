@@ -50,7 +50,7 @@ public class TrainingStack : Stack
             AccountTier = "Standard",
             AccountKind = "StorageV2"
         });
-        
+         
         var app = new FunctionApp($"func-{suffix}-app", new FunctionAppArgs
         {
             ResourceGroupName = resourceGroup.Name,
