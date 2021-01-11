@@ -1,0 +1,85 @@
+name: 'Teardown Function CI-CD Pipeline $(Date:yyyyMMdd)-$(Rev:rr)'
+
+pr: none
+
+trigger:
+  - main
+  - feature/*
+
+pool:
+  vmImage: 'ubuntu-20.04'
+
+variables:
+  - group: 'AccessTokens'
+  - name: buildConfiguration
+    value: 'Release'
+  - name: appWorkingDir
+    value: '$(System.DefaultWorkingDirectory)/src/EchoFunction'
+  - name: azureSubscriptionName
+    value: 'Service connection for Pulumi'
+    
+    
+stages:
+  - stage: drop_infrastructure
+    displayName: 'Drop Azure infrastructure'
+    jobs:
+      - job: Infrastructure
+        variables:
+          stackName: 'dev'
+        steps:
+          - checkout: self
+            displayName: 'Checkout code'
+            fetchDepth: 1
+          - task: PowerShell@2
+            inputs:
+              targetType: 'inline'
+              script: |
+                $branchSource = "$(Build.SourceBranch)"
+                $tmpStackName = $branchSource -replace "refs/heads/", ""
+                $tmpStackName = $tmpStackName -replace "/", "-"
+                $tmpStackName = $tmpStackName
+                Write-Host $tmpStackName
+                Write-Host "##vso[task.setvariable variable=stackName;]$tmpStackName"
+              errorActionPreference: 'continue'
+            displayName: 'Set up stack for feature branch'
+            condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/feat'))
+          #- task: Pulumi@1
+          #  displayName: 'Create new Stack if needed'
+          #  inputs:
+          #    azureSubscription: $(azureSubscriptionName)
+          #    command: 'stack'
+          #    args: 'select $(stackName)'
+          #    cwd: 'infra/'
+          #    stack: '$(stackName)'
+          #    createStack: true
+          - task: Pulumi@1
+            inputs:
+              azureSubscription: $(azureSubscriptionName)
+              command: 'config'
+              args: 'set --path azure:location westeurope'
+              cwd: 'infra/'
+              stack: '$(stackName)'
+              createStack: true
+          - task: Pulumi@1
+            inputs:
+              azureSubscription: $(azureSubscriptionName)
+              command: 'config'
+              args: 'set --path infra:suffix xcc'
+              cwd: 'infra/'
+              stack: '$(stackName)'
+          - task: Pulumi@1
+            displayName: 'Pulumi down'
+            inputs:
+              azureSubscription: $(azureSubscriptionName)
+              command: 'destroy'
+              args: '--yes'
+              cwd: 'infra/'
+              stack: '$(stackName)'
+
+          - script: |
+              echo "##vso[task.setvariable variable=FunctionAppName;isOutput=true]$(pulumi stack output --cwd 'infra/' FunctionAppName)"
+              echo "##vso[task.setvariable variable=FunctionStatingSlotName;isOutput=true]$(pulumi stack output --cwd 'infra/' FunctionStatingSlotName)"
+              echo "##vso[task.setvariable variable=StagingSlotUri;isOutput=true]$(pulumi stack output --cwd 'infra/' StagingSlotUri)"
+              echo "##vso[task.setvariable variable=ResourceGroupName;isOutput=true]$(pulumi stack output --cwd 'infra/' ResourceGroupName)"
+            displayName: 'Set stack outputs as variables'
+            name: 'pulumi'    
